@@ -109,7 +109,7 @@
 
 (define (containers/start name)
   (let ([command (build-command "containers"
-                    #:query `(,name "start"))])
+                                `(,name "start"))])
     (call-with-command 'POST command)))
 
 (define containers/stop
@@ -129,7 +129,7 @@
       (call-with-command 'POST command))))
 
 (define (containers/rename name new-name)
-  (let ([command (format "/containers/~a/rename?name=~a"
-                         name
-                         new-name)])
+  (let ([command (build-command "containers"
+                                `(,name "rename")
+                   #:query `("name" ,new-name))])
     (call-with-command 'POST command)))

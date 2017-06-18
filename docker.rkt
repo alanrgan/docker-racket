@@ -39,7 +39,7 @@
 
 (define (make-request-str type str)
   (let ([ctype (match type
-					  		 ['GET "GET"]
+                 ['GET "GET"]
 					       ['POST "POST"]
 					       [_ (error "Invalid request type "
 					                        type)])])

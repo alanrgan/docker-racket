@@ -3,10 +3,15 @@
 (require racket/unix-socket
          racket/system
          racket/string
-         json)
+         json
+         "types.rkt")
 
 (provide images/ls
          containers/ls
+         containers/start
+         containers/stop
+         containers/restart
+         containers/rename
          call-with-command)
 
 (define (any->string x)
@@ -50,16 +55,23 @@
                    "")])
     (cons status-code body)))
 
-(define (make-request-str type str)
+(define (make-request-str type str data)
   (let ([ctype (match type
                  ['GET "GET"]
 					       ['POST "POST"]
 					       [_ (error "Invalid request type "
 					                        type)])])
-  (format "\"~a ~a ~a\""
+  (define req
+    (format "\"~a ~a ~a\""
           ctype
           str
-          "HTTP/1.0\\r\\n")))
+          "HTTP/1.0\\r\\n"))
+  (if (null? data)
+      req
+      (string-append
+        req
+        (format "Content-Type: application/json\r\n\r\n~a"
+                data)))
 
 ;; Docker call utils
 
@@ -89,9 +101,10 @@
                 "?"
                 (string-join query "&")))))))
 
-(define (call-with-command type command)
-  (docker-call
-    (make-request-str type command)))
+(define call-with-command
+  (lambda (type command #:data [data null])
+    (docker-call
+      (make-request-str type command data))))
 
 ;; Docker methods
 

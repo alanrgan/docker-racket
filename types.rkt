@@ -4,7 +4,8 @@
          json
          "utils.rkt")
 
-(provide make-host-config)
+(provide make-host-config
+         create-container-config)
 
 (define-syntax unless-null
   (syntax-rules ()
@@ -105,7 +106,7 @@
     (unless-null extra-hosts
       (hash-set! host-config 'ExtraHosts extra-hosts))
     (unless-null read-only
-      (hash-set! host-config 'ReadonlyRootfs read-only)
+      (hash-set! host-config 'ReadonlyRootfs read-only))
     (unless-null pid-mode
       (if (and (version-lt version "1.24")
                (not (eq? pid-mode "host")))
@@ -193,3 +194,14 @@
     (unless-null runtime
       (hash-set! host-config 'Runtime runtime))
     host-config))
+
+(define create-container-config
+  (lambda (version image command hostname user detach
+            stdin-open tty mem-limit ports
+            environment dns volumes volumes-from
+            network-disabled entrypoint cpu-shares
+            working-dir domainname memswap-limit
+            cpuset host-config mac-address labels
+            volume-driver stop-signal networking-config
+            healthcheck stop-timeout runtime)
+    'todo))

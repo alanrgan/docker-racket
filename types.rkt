@@ -204,4 +204,104 @@
             cpuset host-config mac-address labels
             volume-driver stop-signal networking-config
             healthcheck stop-timeout runtime)
-    'todo))
+    (let ([container-config (make-hash)])
+      (when (version-gte version "1.10")
+        		(begin
+          		(unless-null dns
+            		(raise "Invalid version: dns parameter has no effect on create-container"))
+              (unless-null volumes-from
+                (raise "Invalid version: volumes-from parameter has no effect on create-container"))))
+      (when (version-lt version "1.18")
+          	(unless-null labels
+            	(raise "Invalid version: labels were introduced in API 1.18")))
+      (if (version-lt version "1.19")
+          (begin
+            (unless-null volume-driver
+              (raise "Invalid version: volume drivers were introduced in API 1.19"))
+            (when (null? mem-limit)
+              (set! mem-limit 0))
+            (when (null? memswap-limit)
+              (set! memswap-limit 0)))
+          (begin
+            (unless-null mem-limit
+              (raise "mem-limit has been moved to host-config since API 1.19"))
+            (unless-null memswap-limit
+              (raise "memswap-limit has been moved to host-config since API 1.19"))))
+      (when (version-lt version "1.21")
+        (unless-null stop-signal
+          (raise "Invalid version: stop signal was introduced in API 1.21")))
+      (unless-null stop-timeout
+        (when (version-lt version "1.25")
+          (raise "Invalid version: stop-timeout only introduced in version 1.25")))
+      (unless-null healthcheck
+        (begin
+	        (when (version-lt version "1.24")
+	          (raise "Invalid verison: health options were only introduced in API 1.24"))
+	        (when (and (version-lt version "1.29") (hash-has-key? healthcheck 'StartPeriod))
+	          (raise "Invalid version: healthcheck start period was introduced in API version 1.29"))))
+      (when (hash? environment)
+        (set! environment (format-hashenv environment)))
+      (when (list? labels)
+        (set! labels (let ([hsh (make-hash)])
+                       (foldl (lambda (label tbl) (hash-set! tbl label "") tbl)
+                              hsh
+                              labels))))
+      (when (list? ports)
+        (let ([exposed-ports (make-hash)])
+          (for ([port-def ports]
+                #:when (and (not (null? port-def))
+                            (pair? port-def)))
+            (let ([formatted 
+                   (string->symbol
+                     (format "~a/~a" (car port-def) (cdr port-def)))])
+              (hash-set! exposed-ports formatted (make-hash)))
+          (set! ports exposed-ports))))
+      (when (string? volumes)
+        (set! volumes (list volumes)))
+      (when (list? volumes)
+        (let ([volume-hash (make-hash)]
+              [vols (map string->symbol volumes)])
+          (for ([v vols])
+            (hash-set! volume-hash v (make-hash)))
+          (set! volumes volume-hash)))
+      (let ([attach-stdin #f]
+            [attach-stdout #f]
+            [attach-stderr #f]
+            [stdin-once #f])
+        (unless detach
+          (set! attach-stdout #t)
+          (set! attach-stderr #t)
+          (when stdin-open
+            (set! attach-stdin #t)
+            (set! stdin-once #t)))
+        (hash-set! container-config 'Hostname hostname)
+        (hash-set! container-config 'Domainname domainname)
+        (hash-set! container-config 'ExposedPorts ports)
+        (hash-set! container-config 'User user)
+        (hash-set! container-config 'Tty tty)
+        (hash-set! container-config 'OpenStdin stdin-open)
+        (hash-set! container-config 'StdinOnce stdin-once)
+        (hash-set! container-config 'Memory mem-limit)
+        (hash-set! container-config 'AttachStdin attach-stdin)
+        (hash-set! container-config 'AttachStdout attach-stdout)
+        (hash-set! container-config 'AttachStderr attach-stderr)
+        (hash-set! container-config 'Env environment)
+        (hash-set! container-config 'Cmd command)
+        (hash-set! container-config 'Dns dns)
+        (hash-set! container-config 'Image image)
+        (hash-set! container-config 'Volumes volumes)
+        (hash-set! container-config 'NetworkDisabled network-disabled)
+        (hash-set! container-config 'Entrypoint entrypoint)
+        (hash-set! container-config 'CpuShares cpu-shares)
+        (hash-set! container-config 'Cpuset cpuset)
+        (hash-set! container-config 'CpusetCpus cpuset)
+        (hash-set! container-config 'WorkingDir working-dir)
+        (hash-set! container-config 'MemorySwap memswap-limit)
+        (hash-set! container-config 'HostConfig host-config)
+        (hash-set! container-config 'NetworkingConfig networking-config)
+        (hash-set! container-config 'MacAddress mac-address)
+        (hash-set! container-config 'Labels labels)
+        (hash-set! container-config 'StopSignal stop-signal)
+        (hash-set! container-config 'StopTimeout stop-timeout)
+        (hash-set! container-config 'Runtime runtime))
+      container-config)))

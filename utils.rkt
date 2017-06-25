@@ -46,3 +46,7 @@
         (set! device-list
               (cons tmp-hash device-list)))))
   device-list)
+
+(define (format-hashenv env)
+  (map (lambda (x) (format "~a=~a" (car x) (cdr x)))
+       (hash->list env)))

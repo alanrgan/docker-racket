@@ -74,26 +74,23 @@
 
 (define (http-successful? response)
   (and (not (null? response))
-       (eq? (car response) 200)))
+       (equal? (car response) "200")))
 
 ;; Docker call utils
 
 (define (docker-call command)
-  (define request
-    (format "echo ~a | nc -U ~a"
-            command
-            docker-sock))
-  (let ([response
-		      (http-parse
-  				  (with-output-to-string
-  				    (lambda () (system request))))])
+  (define request (format "echo ~a | nc -U ~a"
+                          command
+                          docker-sock))
+  (let ([response (http-parse
+          				  (with-output-to-string
+          				    (lambda () (system request))))])
     (if (http-successful? response)
         (cons (car response)
-    		      (string->jsexpr
-    		        (cdr response)))
+    		      (string->jsexpr (cdr response)))
         (if (null? response)
             (cons 'failed "No response from daemon")
-            (cdr response)))))
+            response))))
 
 (define build-command
   (lambda (domain args #:query [query '()])
@@ -114,7 +111,8 @@
     (let ([result (docker-call
                     (make-request-str type command data))])
       (when (or (null? result)
-                (eq? (car result) 'failed))
+                (and (pair? result)
+                     (eq? (car result) 'failed)))
         (raise (format "failed API call: ~a" (cdr result))))
       (if res-only
           (cdr result)
@@ -161,7 +159,7 @@
 (define (containers/rename name new-name)
   (let ([command (build-command "containers"
                                 `(,name "rename")
-                   #:query `("name" ,new-name))])
+                   #:query `(["name" ,new-name]))])
     (call-with-command 'POST command)))
 
 (define containers/create
@@ -206,5 +204,6 @@
                       networking-config healthcheck stop-timeout runtime)]
            [command (build-command "containers"
                                    '("create")
-                      #:query `("name" ,name))])
-      (call-with-command 'POST command #:data config))))
+                      #:query `(["name" ,name]))])
+      config
+      #|(call-with-command 'POST command #:data config)|#)))
